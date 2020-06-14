@@ -279,12 +279,29 @@ if __name__ == "__main__":
 	# max = sys.maxsize
 	# print (max)
 	# max = 9223372036854775807
+	BigNumber = 36854775807
+	K_matrix_global_all_dia = K_matrix_global_all.diagonal()
+	for i_dia in range(len(delta_known_node_ID)):
+		diaID = node_degree*(delta_known_node_ID[i_dia] - 1)
+		K_matrix_global_all_dia[diaID:diaID+node_degree] = BigNumber*K_matrix_global_all_dia[diaID:diaID+node_degree]
 
+	K_matrix_global_all_dia_BC = K_matrix_global_all.setdiag(K_matrix_global_all_dia)
 	
-	# 已知的节点荷载（均布荷载）
+	# 已知的节点荷载（若为均布荷载，需转化为节点对应不同自由度的直接荷载）
 	force_known_node_ID = np.array([1,2])
 	force_known_global = np.array([[0,-192000,-204800],[0,-192000, 204800]])
 
+	F_row_list = []
+	F_col_list = []
+	F_val_list = []
+	for i_rowF in range(len(force_known_node_ID)):
+		F_rowID = node_degree*(force_known_node_ID[i_rowF] - 1)
+		for j_Fr in range(node_degree):
+			F_row_list.append(F_rowID+j_Fr)
+			F_col_list.append(0)
+			F_val_list.append(force_known_global[i_rowF,j_Fr])
+
+	F_matrix_global_all = sparse.coo_matrix((F_val_list,(F_row_list,F_col_list)),dtype=np.float64)
 	# '''
 
 	delta_all_node = spsolve(K_all_element.tocsc(), F_all_node)
