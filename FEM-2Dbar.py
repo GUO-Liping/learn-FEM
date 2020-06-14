@@ -62,16 +62,16 @@ if __name__ == "__main__":
 	K_matrix_global_ele2 = (T_matrix_theta2.dot(K_matrix_local_ele2)).dot(T_matrix_theta2.T)
 	K_matrix_global_ele3 = (T_matrix_theta3.dot(K_matrix_local_ele3)).dot(T_matrix_theta3.T)
 
-	# 将全局坐标系单元刚度矩阵按节点分成子块3×3
+	# 将全局坐标系单元刚度矩阵按节点分成子块3×3，（这里要非常注意子块索引从单元的开始节点编号指向结尾单元编号，与角度对应）
 	K_matrix_global_ele1_11 = K_matrix_global_ele1.tocsr()[np.arange(3),:].tocsc()[:,np.arange(0,3)]
 	K_matrix_global_ele1_12 = K_matrix_global_ele1.tocsr()[np.arange(3),:].tocsc()[:,np.arange(3,6)]
 	K_matrix_global_ele1_21 = K_matrix_global_ele1.tocsr()[np.arange(3,6),:].tocsc()[:,np.arange(0,3)]
 	K_matrix_global_ele1_22 = K_matrix_global_ele1.tocsr()[np.arange(3,6),:].tocsc()[:,np.arange(3,6)]
 
-	K_matrix_global_ele2_11 = K_matrix_global_ele2.tocsr()[np.arange(3),:].tocsc()[:,np.arange(0,3)]
-	K_matrix_global_ele2_13 = K_matrix_global_ele2.tocsr()[np.arange(3),:].tocsc()[:,np.arange(3,6)]
-	K_matrix_global_ele2_31 = K_matrix_global_ele2.tocsr()[np.arange(3,6),:].tocsc()[:,np.arange(0,3)]
-	K_matrix_global_ele2_33 = K_matrix_global_ele2.tocsr()[np.arange(3,6),:].tocsc()[:,np.arange(3,6)]
+	K_matrix_global_ele2_33 = K_matrix_global_ele2.tocsr()[np.arange(3),:].tocsc()[:,np.arange(0,3)]
+	K_matrix_global_ele2_31 = K_matrix_global_ele2.tocsr()[np.arange(3),:].tocsc()[:,np.arange(3,6)]
+	K_matrix_global_ele2_13 = K_matrix_global_ele2.tocsr()[np.arange(3,6),:].tocsc()[:,np.arange(0,3)]
+	K_matrix_global_ele2_11 = K_matrix_global_ele2.tocsr()[np.arange(3,6),:].tocsc()[:,np.arange(3,6)]
 
 	K_matrix_global_ele3_22 = K_matrix_global_ele3.tocsr()[np.arange(3),:].tocsc()[:,np.arange(0,3)]
 	K_matrix_global_ele3_24 = K_matrix_global_ele3.tocsr()[np.arange(3),:].tocsc()[:,np.arange(3,6)]
@@ -92,4 +92,5 @@ if __name__ == "__main__":
 
 	delta_all_node = spsolve(K_all_element, F_all_node)
 
-	print('K_all_element = \n', delta_all_node)
+	print('delta_all_node = \n', delta_all_node)
+	print(K_all_element.dot(delta_all_node)-F_all_node)
