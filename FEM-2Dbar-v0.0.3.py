@@ -115,9 +115,9 @@ if __name__ == "__main__":
 
 	# 节点编号
 	diamension, nodeNum = '2D', 4	# diamension='2D'表示二维问题
-	sigle_node_degree = 3  # 单个节点自由度，（未知量个数）
 	# global_coo_node = func_get_node(diamension, nodeNum)
 	global_coo_node = np.array([[0,5],[6.4,5],[0,0],[9.6,0]])
+	nodeNum, node_degree = 4, 3  # 单个节点自由度，（未知量个数）
 
 	# 单元编号
 	eleType, eleNum = 2, 3  # eleType=2表示两节点单元
@@ -126,17 +126,18 @@ if __name__ == "__main__":
 	ele_length = np.empty(eleNum)
 	ele_angle = np.empty(eleNum)
 
-	for i in range(eleNum):
-		sub_two_nodes = global_coo_node[element_nodes[i,1]-1,:] - global_coo_node[element_nodes[i,0]-1,:]
-		ele_length[i] = np.sqrt(sub_two_nodes.dot(sub_two_nodes))
+	# 根据单元两端节点坐标求解单元在局部坐标系中的倾斜角度与单元长度
+	for i_ in range(eleNum):
+		sub_two_nodes = global_coo_node[element_nodes[i0,1]-1,:] - global_coo_node[element_nodes[i0,0]-1,:]
+		ele_length[i0] = np.sqrt(sub_two_nodes.dot(sub_two_nodes))
 		if sub_two_nodes[0] == 0:
 			if sub_two_nodes[1] > 0:
-				ele_angle[i] = np.pi/2
+				ele_angle[i0] = np.pi/2
 			else:
-				ele_angle[i] = -np.pi/2
+				ele_angle[i0] = -np.pi/2
 		else:
 			# np.arctan其实数部分的取值范围为[-pi/2, pi/2]
-			ele_angle[i] = np.arctan(sub_two_nodes[1]/sub_two_nodes[0])
+			ele_angle[i0] = np.arctan(sub_two_nodes[1]/sub_two_nodes[0])
 
 	print('ele_length=\n', ele_length)
 
@@ -157,41 +158,42 @@ if __name__ == "__main__":
 	T_matrix_theta_ele = func_T_matrix(ele_angle[0])
 	K_matrix_global_ele = (T_matrix_theta_ele.dot(K_matrix_local_ele)).dot(T_matrix_theta_ele.T)
 
-	'''
+	#'''
+	# 形成整体刚度稀疏矩阵
+	#'''
 	row_list = []
 	col_list = []
 	value_list = []
-	K_matrix_global_all = sparse.coo_matrix((3*eleNum, 3*eleNum), dtype=np.float64)
-	for j in range(eleNum):
-		K_matrix_local_ele_b_ii = func_K_matrix_ii(mat_E, sec_I, sec_A, ele_length[j])
-		K_matrix_local_ele_b_ji = func_K_matrix_ji(mat_E, sec_I, sec_A, ele_length[j])
-		K_matrix_local_ele_b_jj = func_K_matrix_jj(mat_E, sec_I, sec_A, ele_length[j])
+	for i1 in range(eleNum):
+		K_matrix_local_ele_b_ii = func_K_matrix_ii(mat_E, sec_I, sec_A, ele_length[i1])
+		K_matrix_local_ele_b_ji = func_K_matrix_ji(mat_E, sec_I, sec_A, ele_length[i1])
+		K_matrix_local_ele_b_jj = func_K_matrix_jj(mat_E, sec_I, sec_A, ele_length[i1])
 		
-		T_matrix_block_ele = func_T_matrix_block(ele_angle[j])
-		T_matrix_block_ele_T = T_matrix_block_ele.T
+		T_matrix_block_ele = func_T_matrix_block(ele_angle[i1])
 
+		T_matrix_block_ele_T = T_matrix_block_ele.T
 		K_matrix_global_ele_b_ii = (T_matrix_block_ele.dot(K_matrix_local_ele_b_ii)).dot(T_matrix_block_ele_T)
 		K_matrix_global_ele_b_ji = (T_matrix_block_ele.dot(K_matrix_local_ele_b_ji)).dot(T_matrix_block_ele_T)
 		K_matrix_global_ele_b_jj = (T_matrix_block_ele.dot(K_matrix_local_ele_b_jj)).dot(T_matrix_block_ele_T)
 
-		index_row = 3*(element_nodes[j,0] - 1)  # 考虑到python从0开始索引，故“-1”
-		index_col = 3*(element_nodes[j,1] - 1)  # 考虑到python从0开始索引，故“-1”
+		index_row = node_degree*(element_nodes[i1,0] - 1)  # 考虑到python从0开始索引，故“-1”
+		index_col = node_degree*(element_nodes[i1,1] - 1)  # 考虑到python从0开始索引，故“-1”
 
 		row_list_ii = [index_row,index_row,index_row,index_row+1,index_row+1,index_row+1,index_row+2,index_row+2,index_row+2]
 		col_list_ii = [index_col,index_col+1,index_col+2,index_col,index_col+1,index_col+2,index_col,index_col+1,index_col+2]
-		for j_1 in range(sigle_node_degree**2):
-			row_list.append(row_list_ii[j_1])
-			col_list.append(col_list_ii[j_1])
+		for j10 in range(node_degree**2):
+			row_list.append(row_list_ii[j10])
+			col_list.append(col_list_ii[j10])
 		print('row_list=',row_list)
 		print('col_list=',col_list)
 
-		for k0 in range(sigle_node_degree):
-			for k1 in range(sigle_node_degree):
-				value_list.append(K_matrix_global_ele_b_ii.toarray()[k0, k1])
+		for j11 in range(node_degree):
+			for k110 in range(node_degree):
+				value_list.append(K_matrix_global_ele_b_ii.toarray()[j11, k110])
 		print('value_list=',value_list)
 	
-	K_matrix_global_all = sparse.coo_matrix((value_list, (row_list,col_list)), shape = (3*eleNum, 3*eleNum), dtype=np.float64)
-	'''
+	K_matrix_global_all = sparse.coo_matrix((value_list, (row_list,col_list)), shape = (node_degree*nodeNum, node_degree*nodeNum), dtype=np.float64)
+	#'''
 	
 	K_matrix_local_ele1 = func_K_matrix(mat_E, sec_I, sec_A, ele_l1)
 	K_matrix_local_ele2 = func_K_matrix(mat_E, sec_I, sec_A, ele_l2)
