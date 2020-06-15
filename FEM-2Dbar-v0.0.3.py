@@ -105,29 +105,40 @@ def func_T_matrix_block(theta):
 	T_matrix_block = sparse.block_diag((T_matrix_block_Theta, T_matrix_block_Eye))
 	return T_matrix_block
 
+def func_rank_element_nodes(para_array):
+	for i in range(len(para_array)):
+	   if para_array[i,0]<para_array[i,1]:
+	       pass
+	   else:
+	       max_value = para_array[i,0]
+	       para_array[i,0]=para_array[i,1]
+	       para_array[i,1]=max_value
+	return para_array
+
 if __name__ == "__main__":
 
 	# 截面惯性矩、截面面积、截面弹性模量
-	sec_I = 15760e-8
-	sec_A = 76.3e-4
-	mat_E = 2e11
+	sec_I = 6.87e-5
+	sec_A = 0.006
+	mat_E = 2.1e11
 
 	# 节点编号
 	diamension, nodeNum = '2D', 4	# diamension='2D'表示二维问题
 	# global_coo_node = func_get_node(diamension, nodeNum)
-	global_coo_node = np.array([[0,5],[6.4,5],[0,0],[9.6,0]])
-	nodeNum, node_degree = 4, 3  # 单个节点自由度，（未知量个数）
+	global_coo_node = np.array([[0,0],[0,5],[5,5]])
+	nodeNum, node_degree = 3, 3  # 单个节点自由度，（未知量个数）
 
 	# 单元编号
-	eleType, eleNum = 2, 3  # eleType=2表示两节点单元
+	eleType, eleNum = 2, 2  # eleType=2表示两节点单元
 	# element_nodes = func_get_element(eleType, eleNum)
-	element_nodes = np.array([[1,2],[3,1],[2,4]])
+	element_nodes = np.array([[1,2],[2,3]])
 	ele_length = np.empty(eleNum)
 	ele_angle = np.empty(eleNum)
+	element_nodes_rank = func_rank_element_nodes(element_nodes)
 
 	# 根据单元两端节点坐标求解单元在局部坐标系中的倾斜角度与单元长度
 	for i_angle in range(eleNum):
-		sub_two_nodes = global_coo_node[element_nodes[i_angle,1]-1,:] - global_coo_node[element_nodes[i_angle,0]-1,:]
+		sub_two_nodes = global_coo_node[element_nodes_rank[i_angle,1]-1,:] - global_coo_node[element_nodes_rank[i_angle,0]-1,:]
 		ele_length[i_angle] = np.sqrt(sub_two_nodes.dot(sub_two_nodes))
 		if sub_two_nodes[0] == 0:
 			if sub_two_nodes[1] > 0:
@@ -175,8 +186,8 @@ if __name__ == "__main__":
 		K_matrix_global_ele_b_ji = (T_matrix_block_ele.dot(K_matrix_local_ele_b_ji)).dot(T_matrix_block_ele_T)
 		K_matrix_global_ele_b_jj = (T_matrix_block_ele.dot(K_matrix_local_ele_b_jj)).dot(T_matrix_block_ele_T)
 
-		node_ID_i = min(element_nodes[i_K,0],element_nodes[i_K,1])
-		node_ID_j = max(element_nodes[i_K,0],element_nodes[i_K,1])
+		node_ID_i = element_nodes_rank[i_K,0]
+		node_ID_j = element_nodes_rank[i_K,1]
 
 		index_row_ii = node_degree*(node_ID_i - 1)  # 考虑到python从0开始索引，而节点编号从1开始，故“-1”
 		index_col_ii = node_degree*(node_ID_i - 1)  # 考虑到python从0开始索引，而节点编号从1开始，故“-1”
@@ -265,13 +276,13 @@ if __name__ == "__main__":
 	print('K_matrix_global_all=\n',K_matrix_global_all.todense())
 	
 	# 计算等效节点力
-	F_node1 = np.array([0,-192000,-204800])
-	F_node2 = np.array([0,-192000, 204800])
+	F_node1 = np.array([0,0,0])
+	F_node2 = np.array([3000,-4250, -2758])
 	F_all_node = np.concatenate((F_node1, F_node2), axis=0)
 
 	# '''
 	# 已知的边界条件（固定边界）
-	delta_known_node_ID = np.array([3,4])
+	delta_known_node_ID = np.array([1,3])
 	delta_known_global = np.array([[0,0,0],[0,0,0]])
 
 	# 位移边界条件处理方法——对角元素乘大数法BigNumber = 36854775807
@@ -281,30 +292,52 @@ if __name__ == "__main__":
 	# max = 9223372036854775807
 	BigNumber = 36854775807
 	K_matrix_global_all_dia = K_matrix_global_all.diagonal()
+	print('K_matrix_global_all_dia',K_matrix_global_all_dia)
 	for i_dia in range(len(delta_known_node_ID)):
 		diaID = node_degree*(delta_known_node_ID[i_dia] - 1)
 		K_matrix_global_all_dia[diaID:diaID+node_degree] = BigNumber*K_matrix_global_all_dia[diaID:diaID+node_degree]
+	print('K_matrix_global_all_dia',K_matrix_global_all_dia)
+	print('K_matrix_global_all=\n',K_matrix_global_all.todense())
 
-	K_matrix_global_all_dia_BC = K_matrix_global_all.setdiag(K_matrix_global_all_dia)
+	K_matrix_global_all.setdiag(K_matrix_global_all_dia)  # 整体刚度矩阵的下三角分块矩阵部分
+	trial_K_matrix = sparse.tril(K_matrix_global_all)  # 整体刚度矩阵的下三角矩阵部分
+	K_matrix_global_all_final = sparse.tril(K_matrix_global_all) + (sparse.tril(K_matrix_global_all,k=-1)).T  # 还原整体刚度对称矩阵
+	print('K_matrix_global_all_final=',K_matrix_global_all_final)
 	
 	# 已知的节点荷载（若为均布荷载，需转化为节点对应不同自由度的直接荷载）
 	force_known_node_ID = np.array([1,2])
-	force_known_global = np.array([[0,-192000,-204800],[0,-192000, 204800]])
+	force_known_global = np.array([[0,0,0],[3000,-4250, -2758]])
 
 	F_row_list = []
 	F_col_list = []
 	F_val_list = []
+
+	# 根据已知的节点荷载形成稀疏矩阵
 	for i_rowF in range(len(force_known_node_ID)):
 		F_rowID = node_degree*(force_known_node_ID[i_rowF] - 1)
 		for j_Fr in range(node_degree):
 			F_row_list.append(F_rowID+j_Fr)
+			print('F_row_list=',F_row_list)
 			F_col_list.append(0)
 			F_val_list.append(force_known_global[i_rowF,j_Fr])
+	# 根据位移边界条件对应修改节点荷载稀疏矩阵-采用乘大数法
+	for i_rowFB in range(len(delta_known_node_ID)):
+		FB_rowID = node_degree*(delta_known_node_ID[i_rowFB] - 1)
+		for j_FBr in range(node_degree):
+			F_row_list.append(FB_rowID+j_FBr)
+			print('F_row_list=',F_row_list)
+			F_col_list.append(0)
+			print('F_col_list',F_col_list)
+			F_val_list.append(BigNumber*(K_matrix_global_all_dia[FB_rowID+j_FBr])*(delta_known_global[i_rowFB,j_FBr]))
+			print('F_val_list',F_val_list)
 
 	F_matrix_global_all = sparse.coo_matrix((F_val_list,(F_row_list,F_col_list)),dtype=np.float64)
+	print('F_matrix_global_all',F_matrix_global_all)
+	delta_array_node_all = spsolve(K_matrix_global_all_final.tocsc(), F_matrix_global_all)
 	# '''
 
 	delta_all_node = spsolve(K_all_element.tocsc(), F_all_node)
 
 	print('delta_all_node = \n', delta_all_node)
-	print(K_all_element.dot(delta_all_node)-F_all_node)
+	print('delta_array_node_all=', delta_array_node_all)
+	# print(K_all_element.dot(delta_all_node)-F_all_node)
