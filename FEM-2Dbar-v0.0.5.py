@@ -88,11 +88,11 @@ if __name__ == "__main__":
 	delta_known_global = np.array([[0,0,0],[0,0,0]])
 	
 	# 静力凝聚：单元的节点自由度释放（调整）
-	pinned, fixed = 0, 1
+	铰接, 刚接 = 0, 1
 	# element_node_BC的参数分别为([单元号，节点i自由度，节点j自由度])，默认i>j，0表示铰接，1表示刚接
 	# element_node_BC = np.array([[1,fixed,pinned],[2,pinned,fixed]])
-	# element_node_BC的参数分别为([节点号，单元号，铰接/刚接])，0表示铰接
-	element_node_BC = np.array([[2,1,pinned],[2,2,pinned]])
+	# element_node_BC的参数分别为([单元号，节点号，铰接/刚接])，0表示铰接
+	element_node_BC = np.array([[1,2,铰接],[2,2,铰接]])
 
 	# 节点数量、单元数量，与整体刚度矩阵相关
 	nodeNum = len(global_coo_node)  # 单个节点自由度，（未知量个数）,len()返回第0轴的数量-行数
@@ -149,12 +149,27 @@ if __name__ == "__main__":
 		K_matrix_global_ele_b_ji = (T_matrix_block_ele.dot(K_matrix_local_ele_b_ji)).dot(T_matrix_block_ele_T)
 		K_matrix_global_ele_b_jj = (T_matrix_block_ele.dot(K_matrix_local_ele_b_jj)).dot(T_matrix_block_ele_T)
 
+		#考虑节点铰接的情况——静力凝聚法
+		for j_nodeBC in range(len(element_node_BC)):
+			if i_K == element_node_BC[j_nodeBC,0]:
+				if element_nodes_rank[i_K,0] == element_node_BC[j_nodeBC,1]:
+					K_matrix_global_ele_b_ii.toarray()[node_degree-1, :] = 0
+					K_matrix_global_ele_b_ii.toarray()[:, node_degree-1] = 0
+					K_matrix_global_ele_b_ji.toarray()[:, node_degree-1] = 0
+				elif elment_nodes_rank[i_K,1] == element_node_BC[j_nodeBC,1]:
+					K_matrix_global_ele_b_ji.toarray()[node_degree-1, :] = 0
+					K_matrix_global_ele_b_jj.toarray()[node_degree-1, :] = 0
+				else:
+					pass
+			else:
+				pass
+
 		# 定位整体坐标系下的总体刚度矩阵子块对应的节点号，默认i节点号小于j节点号
 		node_ID_i = element_nodes_rank[i_K,0]
 		node_ID_j = element_nodes_rank[i_K,1]
 
 		# 利用各单元两端的节点号信息找到该节点自由度对应的刚度矩阵子块在整体刚度矩阵中的行列索引
-
+        
 		# 循环检索不同单元的i节点到i节点刚度矩阵子块信息，存储行列信息
 		# 考虑到python从0开始索引，而节点编号从1开始，故“-1”
 		index_row_ii = node_degree*(node_ID_i - 1)
