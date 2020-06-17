@@ -21,27 +21,67 @@ def func_K_matrix_ii(E,I,A,l):
 	K_matrix_row = np.array([0,1,2,2])
 	K_matrix_column = np.array([0,1,1,2])
 	K_matrix_value = np.array([E*A/l, 12*E*I/l**3, 6*E*I/l**2, 4*E*I/l])
-	K_matrix_down = sparse.coo_matrix((K_matrix_value, (K_matrix_row,K_matrix_column)))
-	dia_data = K_matrix_down.diagonal()  # 提取对角线元素
-	K_matrix_dia = sparse.dia_matrix((dia_data, np.array([0])),shape=(3,3))
-	K_matrix_ii = K_matrix_down + K_matrix_down.T - K_matrix_dia
+	K_matrix_down = sparse.coo_matrix((K_matrix_value, (K_matrix_row,K_matrix_column)),shape=(3,3))
+	K_matrix_ii = sparse.tril(K_matrix_down,k=-1) + K_matrix_down.T
 	return K_matrix_ii
 
 def func_K_matrix_ji(E,I,A,l):
 	K_matrix_row = np.array([0,1,1,2,2])
 	K_matrix_column = np.array([0,1,2,1,2])
 	K_matrix_value = np.array([-E*A/l, -12*E*I/l**3, -6*E*I/l**2, 6*E*I/l**2, 2*E*I/l])
-	K_matrix_ji = sparse.coo_matrix((K_matrix_value, (K_matrix_row,K_matrix_column)))
+	K_matrix_ji = sparse.coo_matrix((K_matrix_value, (K_matrix_row,K_matrix_column)),shape=(3,3))
 	return K_matrix_ji
 
 def func_K_matrix_jj(E,I,A,l):
 	K_matrix_row = np.array([0,1,2,2])
 	K_matrix_column = np.array([0,1,1,2])
 	K_matrix_value = np.array([E*A/l, 12*E*I/l**3, -6*E*I/l**2, 4*E*I/l])
-	K_matrix_down = sparse.coo_matrix((K_matrix_value, (K_matrix_row,K_matrix_column)))
-	dia_data = K_matrix_down.diagonal()  # 提取对角线元素
-	K_matrix_dia = sparse.dia_matrix((dia_data, np.array([0])),shape=(3,3))  # 从对角线元素建立对角阵
-	K_matrix_jj = K_matrix_down + K_matrix_down.T - K_matrix_dia
+	K_matrix_down = sparse.coo_matrix((K_matrix_value, (K_matrix_row,K_matrix_column)),shape=(3,3))
+	K_matrix_jj = sparse.tril(K_matrix_down,k=-1) + K_matrix_down.T
+	return K_matrix_jj
+
+def func_freeM1_K_matrix_ii(E,I,A,l):
+	K_matrix_row = np.array([0,1])
+	K_matrix_column = np.array([0,1])
+	K_matrix_value = np.array([E*A/l, 3*E*I/l**3])
+	K_matrix_down = sparse.coo_matrix((K_matrix_value, (K_matrix_row,K_matrix_column)),shape=(3,3))
+	K_matrix_ii = sparse.tril(K_matrix_down,k=-1) + K_matrix_down.T
+	return K_matrix_ii
+
+def func_freeM1_K_matrix_ji(E,I,A,l):
+	K_matrix_row = np.array([0,1,2])
+	K_matrix_column = np.array([0,1,1])
+	K_matrix_value = np.array([-E*A/l, -3*E*I/l**3, 3*E*I/l**2])
+	K_matrix_ji = sparse.coo_matrix((K_matrix_value, (K_matrix_row,K_matrix_column)),shape=(3,3))
+	return K_matrix_ji
+
+def func_freeM1_K_matrix_jj(E,I,A,l):
+	K_matrix_row = np.array([0,1,1,2,2])
+	K_matrix_column = np.array([0,1,2,1,2])
+	K_matrix_value = np.array([E*A/l, 3*E*I/l**3,-3*E*I/l**2,-3*E*I/l**2,3*E*I/l])
+	K_matrix_jj = sparse.coo_matrix((K_matrix_value, (K_matrix_row,K_matrix_column)),shape=(3,3))
+	return K_matrix_jj
+	
+def func_freeM2_K_matrix_ii(E,I,A,l):
+	K_matrix_row = np.array([0,1,2,2])
+	K_matrix_column = np.array([0,1,1,2])
+	K_matrix_value = np.array([E*A/l, 3*E*I/l**3, 3*E*I/l**2, 3*E*I/l])
+	K_matrix_down = sparse.coo_matrix((K_matrix_value, (K_matrix_row,K_matrix_column)),shape=(3,3))
+	K_matrix_ii = sparse.tril(K_matrix_down,k=-1) + K_matrix_down.T
+	return K_matrix_ii
+
+def func_freeM2_K_matrix_ji(E,I,A,l):
+	K_matrix_row = np.array([0,1,1])
+	K_matrix_column = np.array([0,1,2])
+	K_matrix_value = np.array([-E*A/l, -3*E*I/l**3, -3*E*I/l**2])
+	K_matrix_ji = sparse.coo_matrix((K_matrix_value, (K_matrix_row,K_matrix_column)),shape=(3,3))
+	return K_matrix_ji
+
+def func_freeM2_K_matrix_jj(E,I,A,l):
+	K_matrix_row = np.array([0,1])
+	K_matrix_column = np.array([0,1])
+	K_matrix_value = np.array([E*A/l, 3*E*I/l**3])
+	K_matrix_jj = sparse.coo_matrix((K_matrix_value, (K_matrix_row,K_matrix_column)),shape=(3,3))
 	return K_matrix_jj
 
 def func_T_matrix_block(theta):
@@ -52,12 +92,12 @@ def func_T_matrix_block(theta):
 
 def func_rank_element_nodes(para_array):
 	for i in range(len(para_array)):
-	   if para_array[i,0]<para_array[i,1]:
-	       pass
-	   else:
-	       max_value = para_array[i,0]
-	       para_array[i,0]=para_array[i,1]
-	       para_array[i,1]=max_value
+		if para_array[i,0]<para_array[i,1]:
+			pass
+		else:
+			max_value = para_array[i,0]
+			para_array[i,0]=para_array[i,1]
+			para_array[i,1]=max_value
 	return para_array
 
 if __name__ == "__main__":
@@ -66,9 +106,11 @@ if __name__ == "__main__":
 	sec_I = 6.87e-5
 	sec_A = 0.006
 	mat_E = 2.1e11
+	EA = mat_E*sec_A
+	EI = mat_E*sec_I
 
 	# 问题描述：二维、三维、自由度、单元类型
-	diamension = '2D'	# diamension='2D'表示二维问题
+	diamension = '2D'  # diamension='2D'表示二维问题
 	node_degree = 3
 	eleType = 2  # eleType=2表示两节点单元
 
@@ -78,7 +120,7 @@ if __name__ == "__main__":
 	# 单元编号
 	element_nodes = np.array([[1,2],[2,3]])
 
-	# 已知的节点荷载条件（若为均布荷载，需转化为节点对应不同自由度的直接荷载）	
+	# 已知的节点荷载条件（若为均布荷载，需转化为节点对应不同自由度的直接荷载）
 	# 计算等效节点力
 	force_known_node_ID = np.array([1,2])
 	force_known_global = np.array([[0,0,0],[3000,-4250, -2758]])
@@ -88,11 +130,11 @@ if __name__ == "__main__":
 	delta_known_global = np.array([[0,0,0],[0,0,0]])
 	
 	# 静力凝聚：单元的节点自由度释放（调整）
-	铰接, 刚接 = 0, 1
+	x_pin, y_pin, xy_pin = 1, 2, 3
 	# element_node_BC的参数分别为([单元号，节点i自由度，节点j自由度])，默认i>j，0表示铰接，1表示刚接
 	# element_node_BC = np.array([[1,fixed,pinned],[2,pinned,fixed]])
 	# element_node_BC的参数分别为([单元号，节点号，铰接/刚接])，0表示铰接
-	element_node_BC = np.array([[1,2,铰接],[2,2,铰接]])
+	element_node_BC = np.array([[1,2,xy_pin],[2,2,xy_pin]])
 
 	# 节点数量、单元数量，与整体刚度矩阵相关
 	nodeNum = len(global_coo_node)  # 单个节点自由度，（未知量个数）,len()返回第0轴的数量-行数
@@ -132,6 +174,23 @@ if __name__ == "__main__":
 	# 将全局坐标系单元刚度矩阵按节点分成子块3×3，（这里要非常注意子块索引从单元的开始节点编号指向结尾单元编号，与角度对应）
 	# 以下循环中仅仅对于ii，jj，ji中默认i>j，使得指定为形成整体刚度矩阵的分块矩阵下三角部分
 	for i_K in range(eleNum):
+			#考虑节点铰接的情况——静力凝聚法
+		for j_nodeBC in range(len(element_node_BC)):
+			if i_K == element_node_BC[j_nodeBC,0]:
+				if element_nodes_rank[i_K,0] == element_node_BC[j_nodeBC,1]:
+					K_matrix_local_ele_b_ii=func_freeM1_K_matrix_ii(mat_E, sec_I, sec_A, ele_length[i_K])
+					K_matrix_local_ele_b_ii=func_freeM1_K_matrix_ji(mat_E, sec_I, sec_A, ele_length[i_K])
+					K_matrix_local_ele_b_ji=func_freeM1_K_matrix_jj(mat_E, sec_I, sec_A, ele_length[i_K])
+					
+				elif elment_nodes_rank[i_K,1] == element_node_BC[j_nodeBC,1]:
+					K_matrix_local_ele_b_ii=func_freeM2_K_matrix_ii(mat_E, sec_I, sec_A, ele_length[i_K])
+					K_matrix_local_ele_b_ji=func_freeM2_K_matrix_ji(mat_E, sec_I, sec_A, ele_length[i_K])
+					K_matrix_local_ele_b_jj=func_freeM2_K_matrix_jj(mat_E, sec_I, sec_A, ele_length[i_K])
+				else:
+					pass
+			else:
+				pass
+
 		# 第i_K个单元的第一个节点i节点对应3个（node_freedom）自由度的单元刚度矩阵子块
 		K_matrix_local_ele_b_ii = func_K_matrix_ii(mat_E, sec_I, sec_A, ele_length[i_K])
 		# 第i_K个单元的第二个节点j到第一个节点i对应3个（node_freedom）自由度的单元刚度矩阵子块
@@ -141,7 +200,6 @@ if __name__ == "__main__":
 		
 		# 坐标旋转矩阵一个节点所有自由度对应的子矩阵
 		T_matrix_block_ele = func_T_matrix_block(ele_angle[i_K])
-
 		T_matrix_block_ele_T = T_matrix_block_ele.T
 
 		# 单元刚度矩阵各分块经变换转换为整体坐标系下的总体刚度矩阵子块值
@@ -149,27 +207,11 @@ if __name__ == "__main__":
 		K_matrix_global_ele_b_ji = (T_matrix_block_ele.dot(K_matrix_local_ele_b_ji)).dot(T_matrix_block_ele_T)
 		K_matrix_global_ele_b_jj = (T_matrix_block_ele.dot(K_matrix_local_ele_b_jj)).dot(T_matrix_block_ele_T)
 
-		#考虑节点铰接的情况——静力凝聚法
-		for j_nodeBC in range(len(element_node_BC)):
-			if i_K == element_node_BC[j_nodeBC,0]:
-				if element_nodes_rank[i_K,0] == element_node_BC[j_nodeBC,1]:
-					K_matrix_global_ele_b_ii.toarray()[node_degree-1, :] = 0
-					K_matrix_global_ele_b_ii.toarray()[:, node_degree-1] = 0
-					K_matrix_global_ele_b_ji.toarray()[:, node_degree-1] = 0
-				elif elment_nodes_rank[i_K,1] == element_node_BC[j_nodeBC,1]:
-					K_matrix_global_ele_b_ji.toarray()[node_degree-1, :] = 0
-					K_matrix_global_ele_b_jj.toarray()[node_degree-1, :] = 0
-				else:
-					pass
-			else:
-				pass
-
 		# 定位整体坐标系下的总体刚度矩阵子块对应的节点号，默认i节点号小于j节点号
 		node_ID_i = element_nodes_rank[i_K,0]
 		node_ID_j = element_nodes_rank[i_K,1]
 
 		# 利用各单元两端的节点号信息找到该节点自由度对应的刚度矩阵子块在整体刚度矩阵中的行列索引
-        
 		# 循环检索不同单元的i节点到i节点刚度矩阵子块信息，存储行列信息
 		# 考虑到python从0开始索引，而节点编号从1开始，故“-1”
 		index_row_ii = node_degree*(node_ID_i - 1)
@@ -178,7 +220,7 @@ if __name__ == "__main__":
 		# 整体刚度矩阵中节点自由度ii对应单元刚度矩阵的行索引
 		row_list_ii = [index_row_ii,index_row_ii,index_row_ii,index_row_ii+1,index_row_ii+1,index_row_ii+1,index_row_ii+2,index_row_ii+2,index_row_ii+2]
 		# 整体刚度矩阵中节点自由度ii对应单元刚度矩阵的列索引
-		col_list_ii = [index_col_ii,index_col_ii+1,index_col_ii+2,index_col_ii,index_col_ii+1,index_col_ii+2,index_col_ii,index_col_ii+1,index_col_ii+2]	
+		col_list_ii = [index_col_ii,index_col_ii+1,index_col_ii+2,index_col_ii,index_col_ii+1,index_col_ii+2,index_col_ii,index_col_ii+1,index_col_ii+2]
 		# 循环检索不同单元的ii节点自由度刚度矩阵子块信息，存储行列信息
 		for j_rc_ii in range(node_degree**2):
 			row_list.append(row_list_ii[j_rc_ii])
@@ -273,3 +315,4 @@ if __name__ == "__main__":
 	delta_array_node_all = spsolve(K_matrix_global_all_final.tocsc(), F_matrix_global_all)
 	# '''
 	print('delta_array_node_all=', delta_array_node_all)
+	
