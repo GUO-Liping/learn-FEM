@@ -103,9 +103,9 @@ def func_rank_element_nodes(para_array):
 if __name__ == "__main__":
 
 	# 截面惯性矩、截面面积、截面弹性模量
-	sec_I = 6.87e-5
-	sec_A = 0.006
-	mat_E = 2.1e11
+	sec_I = 1e-2
+	sec_A = 1e-2
+	mat_E = 1e6
 	EA = mat_E*sec_A
 	EI = mat_E*sec_I
 
@@ -115,7 +115,7 @@ if __name__ == "__main__":
 	eleType = 2  # eleType=2表示两节点单元
 
 	# 节点坐标
-	global_coo_node = np.array([[0,0],[0,5],[5,5]])
+	global_coo_node = np.array([[0,0],[1,0],[2,0]])
 
 	# 单元编号
 	element_nodes = np.array([[1,2],[2,3]])
@@ -123,7 +123,7 @@ if __name__ == "__main__":
 	# 已知的节点荷载条件（若为均布荷载，需转化为节点对应不同自由度的直接荷载）
 	# 计算等效节点力
 	force_known_node_ID = np.array([1,2])
-	force_known_global = np.array([[0,0,0],[3000,-4250, -2758]])
+	force_known_global = np.array([[0,0,0],[0,1e4, 0]])
 	
 	# 已知的位移边界条件（固定边界）
 	delta_known_node_ID = np.array([1,3])
@@ -134,7 +134,7 @@ if __name__ == "__main__":
 	# element_node_BC的参数分别为([单元号，节点i自由度，节点j自由度])，默认i>j，0表示铰接，1表示刚接
 	# element_node_BC = np.array([[1,fixed,pinned],[2,pinned,fixed]])
 	# element_node_BC的参数分别为([单元号，节点号，铰接/刚接])，0表示铰接
-	element_node_BC = np.array([[1,2,xy_pin],[2,2,xy_pin]])
+	element_node_BC = np.array([[2,3,xy_pin],[3,3,xy_pin]])
 
 	# 节点数量、单元数量，与整体刚度矩阵相关
 	nodeNum = len(global_coo_node)  # 单个节点自由度，（未知量个数）,len()返回第0轴的数量-行数
@@ -265,26 +265,6 @@ if __name__ == "__main__":
 
 	K_matrix_global_all = sparse.coo_matrix((value_list, (row_list,col_list)), shape = (node_degree*nodeNum, node_degree*nodeNum), dtype=np.float64)
 
-	# 位移边界条件处理方法——对角元素乘大数法BigNumber = 36854775807
-	# import sys
-	# max = sys.maxsize
-	# print (max)
-	# max = 9223372036854775807
-	BigNumber = 36854775807
-	K_matrix_global_all_dia = K_matrix_global_all.diagonal()
-	# print('K_matrix_global_all_dia',K_matrix_global_all_dia)
-	for i_dia in range(len(delta_known_node_ID)):
-		diaID = node_degree*(delta_known_node_ID[i_dia] - 1)
-		K_matrix_global_all_dia[diaID:diaID+node_degree] = BigNumber*K_matrix_global_all_dia[diaID:diaID+node_degree]
-	# print('K_matrix_global_all_dia',K_matrix_global_all_dia)
-	# print('K_matrix_global_all=\n',K_matrix_global_all.todense())
-
-	K_matrix_global_all.setdiag(K_matrix_global_all_dia)  # 整体刚度矩阵的下三角分块矩阵部分
-	trial_K_matrix = sparse.tril(K_matrix_global_all)  # 整体刚度矩阵的下三角矩阵部分
-	K_matrix_global_all_final = sparse.tril(K_matrix_global_all) + (sparse.tril(K_matrix_global_all,k=-1)).T  # 还原整体刚度对称矩阵
-	#print('K_matrix_global_all_final=',K_matrix_global_all_final)
-	# 通过整体刚度矩阵子块形成完整的整体刚度矩阵(已经考虑边界约束)
-
 	F_row_list = []
 	F_col_list = []
 	F_val_list = []
@@ -297,6 +277,19 @@ if __name__ == "__main__":
 			# print('F_row_list=',F_row_list)
 			F_col_list.append(0)
 			F_val_list.append(force_known_global[i_rowF,j_Fr])
+	
+	# ----------------------------------------------------------------------------------------------------------------
+	# 位移边界条件处理方法——对角元素乘大数法BigNumber = 36854775807
+	# import sys
+	# max = sys.maxsize
+	# print (max)
+	# max = 9223372036854775807
+	BigNumber = 36854775807
+	K_matrix_global_all_dia = K_matrix_global_all.diagonal()
+	# print('K_matrix_global_all_dia',K_matrix_global_all_dia)
+	for i_dia in range(len(delta_known_node_ID)):
+		diaID = node_degree*(delta_known_node_ID[i_dia] - 1)
+		K_matrix_global_all_dia[diaID:diaID+node_degree] = BigNumber*K_matrix_global_all_dia[diaID:diaID+node_degree]
 
 	# 根据位移边界条件对应修改节点荷载稀疏矩阵-采用乘大数法
 	for i_rowFB in range(len(delta_known_node_ID)):
@@ -308,8 +301,14 @@ if __name__ == "__main__":
 			# print('F_col_list',F_col_list)
 			F_val_list.append(BigNumber*(K_matrix_global_all_dia[FB_rowID+j_FBr])*(delta_known_global[i_rowFB,j_FBr]))
 			# print('F_val_list',F_val_list)
+	# ----------------------------------------------------------------------------------------------------------------
 
 	# 求解刚度矩阵
+	K_matrix_global_all.setdiag(K_matrix_global_all_dia)  # 整体刚度矩阵的下三角分块矩阵部分
+	trial_K_matrix = sparse.tril(K_matrix_global_all)  # 整体刚度矩阵的下三角矩阵部分
+	K_matrix_global_all_final = sparse.tril(K_matrix_global_all) + (sparse.tril(K_matrix_global_all,k=-1)).T  # 还原整体刚度对称矩阵
+	#print('K_matrix_global_all_final=',K_matrix_global_all_final)
+	# 通过整体刚度矩阵子块形成完整的整体刚度矩阵(已经考虑边界约束)
 	F_matrix_global_all = sparse.coo_matrix((F_val_list,(F_row_list,F_col_list)),dtype=np.float64)
 	#print('F_matrix_global_all',F_matrix_global_all)
 	delta_array_node_all = spsolve(K_matrix_global_all_final.tocsc(), F_matrix_global_all)
