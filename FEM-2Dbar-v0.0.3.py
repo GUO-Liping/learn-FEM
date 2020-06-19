@@ -341,3 +341,4 @@ if __name__ == "__main__":
 	print('delta_all_node = \n', delta_all_node)
 	print('delta_array_node_all=', delta_array_node_all)
 	# print(K_all_element.dot(delta_all_node)-F_all_node)
+	
