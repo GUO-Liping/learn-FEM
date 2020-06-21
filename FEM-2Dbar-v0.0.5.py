@@ -4,6 +4,7 @@
 尝试进一步高效集成为稀疏矩阵，但无法获得较高的集成效率
 故在FEM-2Dbar-v0.0.2.py版本中直接从最小的节点自由度出发对单元刚度矩阵分块，
 再进一步尝试高效集成稀疏矩阵...
+程序中应用了scipy.sparse.coo_matrix稀疏矩阵生成的重要性质，即某一特定行列位置的值重复输入时，默认对输入值进行叠加
 FEM-2Dbar-v0.0.4.py在FEM-2Dbar-v0.0.3.py的基础上删除了冗余代码，添加了注释信息
 但仍然存在两个问题
 （1）不能分析三维梁单元问题——难度系数：3星
@@ -121,7 +122,7 @@ if __name__ == "__main__":
 	element_nodes = np.array([[1,2],[2,3]])
 
 	# 已知的节点荷载条件（若为均布荷载，需转化为节点对应不同自由度的直接荷载）
-	# 计算等效节点力
+	# 计算等效节点力,若为跨中某位置的荷载，按两端固结的梁计算支座反力（为了统一考虑铰接情况）
 	force_known_node_ID = np.array([1,2])
 	force_known_global = np.array([[0,0,0],[0,1e4, 0]])
 	
@@ -186,12 +187,24 @@ if __name__ == "__main__":
 		for j_nodeBC in range(len(element_node_BC)):
 			index_row_element_node_BC = element_node_BC[j_nodeBC,0] - 1
 			if index_row_element_node_BC == i_K:
+				# K_cc_wang为静力凝聚法（王勖成）需释放自由度对应位置的刚度矩阵子块
+				K_cc_wang = (4*mat_E * sec_I)/ele_length[index_row_element_node_BC]
 				if element_node_BC[j_nodeBC,1] == element_nodes_rank[i_K,0]:
+					K_c0_wang = np.array([0,(6*mat_E * sec_I)/(ele_length[index_row_element_node_BC]**2)])
+					K_c1_wang = np.array([0,-(6*mat_E * sec_I)/(ele_length[index_row_element_node_BC]**2),(2*mat_E * sec_I)/ele_length[index_row_element_node_BC]])
+					a0_wang = np.array([0,0])
+					a1_wang = np.array([0,0,0])
+					Pc_wang = force_known_global[1,1]
+
 					K_matrix_local_ele_b_ii=func_freeM1_K_matrix_ii(mat_E, sec_I, sec_A, ele_length[i_K])
 					K_matrix_local_ele_b_ji=func_freeM1_K_matrix_ji(mat_E, sec_I, sec_A, ele_length[i_K])
 					K_matrix_local_ele_b_jj=func_freeM1_K_matrix_jj(mat_E, sec_I, sec_A, ele_length[i_K])
 					
 				elif element_node_BC[j_nodeBC,1] == element_nodes_rank[i_K,1]:
+					K_c0_wang = np.array([0, (6*mat_E * sec_I)/(ele_length[index_row_element_node_BC]**2), (2*mat_E * sec_I)/ele_length[index_row_element_node_BC], 0, -(6*mat_E * sec_I)/(ele_length[index_row_element_node_BC]**2)])
+					a0_wang = np.array([0,0])
+					Pc_wang = force_known_global[1,1]
+
 					K_matrix_local_ele_b_ii=func_freeM2_K_matrix_ii(mat_E, sec_I, sec_A, ele_length[i_K])
 					K_matrix_local_ele_b_ji=func_freeM2_K_matrix_ji(mat_E, sec_I, sec_A, ele_length[i_K])
 					K_matrix_local_ele_b_jj=func_freeM2_K_matrix_jj(mat_E, sec_I, sec_A, ele_length[i_K])
@@ -287,7 +300,7 @@ if __name__ == "__main__":
 	# max = sys.maxsize
 	# print (max)
 	# max = 9223372036854775807
-	BigNumber = 1
+	BigNumber = 36854775807
 	K_matrix_global_all_dia = K_matrix_global_all.diagonal()
 	# print('K_matrix_global_all_dia',K_matrix_global_all_dia)
 	for i_dia in range(len(delta_known_node_ID)):
@@ -305,6 +318,8 @@ if __name__ == "__main__":
 			F_val_list.append(BigNumber*(K_matrix_global_all_dia[FB_rowID+j_FBr])*(delta_known_global[i_rowFB,j_FBr]))
 			# print('F_val_list',F_val_list)
 	# 求解刚度矩阵
+	# 对于已释放节点自由度对应的刚度矩阵与荷载向量，采用“加”大数法进行处理，这样可避免刚度矩阵奇异的问题
+	# K_matrix_global_all_dia[]
 	K_matrix_global_all.setdiag(K_matrix_global_all_dia)  # 整体刚度矩阵的下三角分块矩阵部分
 	# ----------------------------------------------------------------------------------------------------------------
 	#'''
@@ -318,7 +333,6 @@ if __name__ == "__main__":
 	
 	K_matrix_global_all_final_reduced = sparse.bmat([[K_matrix_global_all_11,K_matrix_global_all_12],[K_matrix_global_all_21, K_matrix_global_all_22]])
 
-
 	np.set_printoptions(precision=3, suppress=True)
 	print('K_matrix_global_all_final=',K_matrix_global_all_final_reduced.toarray())
 	# 通过整体刚度矩阵子块形成完整的整体刚度矩阵(已经考虑边界约束)
@@ -328,4 +342,4 @@ if __name__ == "__main__":
 	delta_array_node_all = spsolve(K_matrix_global_all_final_reduced.tocsc(), F_matrix_global_all_reduced)
 	# '''
 	print('delta_array_node_all=', delta_array_node_all)
-	
+	print('delta_array_node_all1=', 1/K_cc_wang * Pc_wang)
