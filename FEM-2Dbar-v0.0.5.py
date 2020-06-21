@@ -117,7 +117,7 @@ if __name__ == "__main__":
 	# 节点坐标
 	global_coo_node = np.array([[0,0],[1,0],[2,0]])
 
-	# 单元编号
+	# 单元编号——从1开始
 	element_nodes = np.array([[1,2],[2,3]])
 
 	# 已知的节点荷载条件（若为均布荷载，需转化为节点对应不同自由度的直接荷载）
@@ -130,11 +130,10 @@ if __name__ == "__main__":
 	delta_known_global = np.array([[0,0,0],[0,0,0]])
 	
 	# 静力凝聚：单元的节点自由度释放（调整）
-	x_pin, y_pin, xy_pin = 1, 2, 3
-	# element_node_BC的参数分别为([单元号，节点i自由度，节点j自由度])，默认i>j，0表示铰接，1表示刚接
-	# element_node_BC = np.array([[1,fixed,pinned],[2,pinned,fixed]])
-	# element_node_BC的参数分别为([单元号，节点号，铰接/刚接])，0表示铰接
-	element_node_BC = np.array([[2,3,xy_pin],[3,3,xy_pin]])
+	x_pin, y_pin, xy_pin = 0, 1, 2
+
+	# element_node_BC的参数分别为([单元号，节点号，铰接/刚接])，2表示释放转动约束：铰接
+	element_node_BC = np.array([[1,2,xy_pin],[2,2,xy_pin]])
 
 	# 节点数量、单元数量，与整体刚度矩阵相关
 	nodeNum = len(global_coo_node)  # 单个节点自由度，（未知量个数）,len()返回第0轴的数量-行数
@@ -145,8 +144,8 @@ if __name__ == "__main__":
 
 	# 新建numpy array用于存储单元长度，仅考虑局部坐标与整体坐标间的旋转角度
 	# 注意：这里并没有考虑整体坐标系与局部坐标系之间的平移关系
-	ele_length = np.empty(eleNum)
-	ele_angle = np.empty(eleNum)
+	ele_length = np.zeros(eleNum)
+	ele_angle = np.zeros(eleNum)
 
 	# 根据单元两端节点坐标求解单元在局部坐标系中的倾斜角度与单元长度
 	for i_angle in range(eleNum):
@@ -174,22 +173,7 @@ if __name__ == "__main__":
 	# 将全局坐标系单元刚度矩阵按节点分成子块3×3，（这里要非常注意子块索引从单元的开始节点编号指向结尾单元编号，与角度对应）
 	# 以下循环中仅仅对于ii，jj，ji中默认i>j，使得指定为形成整体刚度矩阵的分块矩阵下三角部分
 	for i_K in range(eleNum):
-			#考虑节点铰接的情况——静力凝聚法
-		for j_nodeBC in range(len(element_node_BC)):
-			if i_K == element_node_BC[j_nodeBC,0]:
-				if element_nodes_rank[i_K,0] == element_node_BC[j_nodeBC,1]:
-					K_matrix_local_ele_b_ii=func_freeM1_K_matrix_ii(mat_E, sec_I, sec_A, ele_length[i_K])
-					K_matrix_local_ele_b_ii=func_freeM1_K_matrix_ji(mat_E, sec_I, sec_A, ele_length[i_K])
-					K_matrix_local_ele_b_ji=func_freeM1_K_matrix_jj(mat_E, sec_I, sec_A, ele_length[i_K])
-					
-				elif elment_nodes_rank[i_K,1] == element_node_BC[j_nodeBC,1]:
-					K_matrix_local_ele_b_ii=func_freeM2_K_matrix_ii(mat_E, sec_I, sec_A, ele_length[i_K])
-					K_matrix_local_ele_b_ji=func_freeM2_K_matrix_ji(mat_E, sec_I, sec_A, ele_length[i_K])
-					K_matrix_local_ele_b_jj=func_freeM2_K_matrix_jj(mat_E, sec_I, sec_A, ele_length[i_K])
-				else:
-					pass
-			else:
-				pass
+
 
 		# 第i_K个单元的第一个节点i节点对应3个（node_freedom）自由度的单元刚度矩阵子块
 		K_matrix_local_ele_b_ii = func_K_matrix_ii(mat_E, sec_I, sec_A, ele_length[i_K])
@@ -197,7 +181,25 @@ if __name__ == "__main__":
 		K_matrix_local_ele_b_ji = func_K_matrix_ji(mat_E, sec_I, sec_A, ele_length[i_K])
 		# 第i_K个单元的第二个节点j节点对应3个（node_freedom）自由度的单元刚度矩阵子块
 		K_matrix_local_ele_b_jj = func_K_matrix_jj(mat_E, sec_I, sec_A, ele_length[i_K])
-		
+
+		#考虑节点铰接的情况——静力凝聚法
+		for j_nodeBC in range(len(element_node_BC)):
+			index_row_element_node_BC = element_node_BC[j_nodeBC,0] - 1
+			if index_row_element_node_BC == i_K:
+				if element_node_BC[j_nodeBC,1] == element_nodes_rank[i_K,0]:
+					K_matrix_local_ele_b_ii=func_freeM1_K_matrix_ii(mat_E, sec_I, sec_A, ele_length[i_K])
+					K_matrix_local_ele_b_ji=func_freeM1_K_matrix_ji(mat_E, sec_I, sec_A, ele_length[i_K])
+					K_matrix_local_ele_b_jj=func_freeM1_K_matrix_jj(mat_E, sec_I, sec_A, ele_length[i_K])
+					
+				elif element_node_BC[j_nodeBC,1] == element_nodes_rank[i_K,1]:
+					K_matrix_local_ele_b_ii=func_freeM2_K_matrix_ii(mat_E, sec_I, sec_A, ele_length[i_K])
+					K_matrix_local_ele_b_ji=func_freeM2_K_matrix_ji(mat_E, sec_I, sec_A, ele_length[i_K])
+					K_matrix_local_ele_b_jj=func_freeM2_K_matrix_jj(mat_E, sec_I, sec_A, ele_length[i_K])
+				else:
+					pass
+			else:
+				pass
+		print('K_matrix_local_ele_b_ii = ',K_matrix_local_ele_b_ii)
 		# 坐标旋转矩阵一个节点所有自由度对应的子矩阵
 		T_matrix_block_ele = func_T_matrix_block(ele_angle[i_K])
 		T_matrix_block_ele_T = T_matrix_block_ele.T
@@ -278,13 +280,14 @@ if __name__ == "__main__":
 			F_col_list.append(0)
 			F_val_list.append(force_known_global[i_rowF,j_Fr])
 	
+	# '''
 	# ----------------------------------------------------------------------------------------------------------------
 	# 位移边界条件处理方法——对角元素乘大数法BigNumber = 36854775807
 	# import sys
 	# max = sys.maxsize
 	# print (max)
 	# max = 9223372036854775807
-	BigNumber = 36854775807
+	BigNumber = 1
 	K_matrix_global_all_dia = K_matrix_global_all.diagonal()
 	# print('K_matrix_global_all_dia',K_matrix_global_all_dia)
 	for i_dia in range(len(delta_known_node_ID)):
@@ -301,17 +304,28 @@ if __name__ == "__main__":
 			# print('F_col_list',F_col_list)
 			F_val_list.append(BigNumber*(K_matrix_global_all_dia[FB_rowID+j_FBr])*(delta_known_global[i_rowFB,j_FBr]))
 			# print('F_val_list',F_val_list)
-	# ----------------------------------------------------------------------------------------------------------------
-
 	# 求解刚度矩阵
 	K_matrix_global_all.setdiag(K_matrix_global_all_dia)  # 整体刚度矩阵的下三角分块矩阵部分
+	# ----------------------------------------------------------------------------------------------------------------
+	#'''
 	trial_K_matrix = sparse.tril(K_matrix_global_all)  # 整体刚度矩阵的下三角矩阵部分
 	K_matrix_global_all_final = sparse.tril(K_matrix_global_all) + (sparse.tril(K_matrix_global_all,k=-1)).T  # 还原整体刚度对称矩阵
-	#print('K_matrix_global_all_final=',K_matrix_global_all_final)
+
+	K_matrix_global_all_11 = K_matrix_global_all_final.tocsr()[np.arange(0,5),:].tocsc()[:,np.arange(0,5)]
+	K_matrix_global_all_12 = K_matrix_global_all_final.tocsr()[np.arange(0,5),:].tocsc()[:,np.arange(6,9)]
+	K_matrix_global_all_21 = K_matrix_global_all_final.tocsr()[np.arange(6,9),:].tocsc()[:,np.arange(0,5)]
+	K_matrix_global_all_22 = K_matrix_global_all_final.tocsr()[np.arange(6,9),:].tocsc()[:,np.arange(6,9)]
+	
+	K_matrix_global_all_final_reduced = sparse.bmat([[K_matrix_global_all_11,K_matrix_global_all_12],[K_matrix_global_all_21, K_matrix_global_all_22]])
+
+
+	np.set_printoptions(precision=3, suppress=True)
+	print('K_matrix_global_all_final=',K_matrix_global_all_final_reduced.toarray())
 	# 通过整体刚度矩阵子块形成完整的整体刚度矩阵(已经考虑边界约束)
 	F_matrix_global_all = sparse.coo_matrix((F_val_list,(F_row_list,F_col_list)),dtype=np.float64)
-	#print('F_matrix_global_all',F_matrix_global_all)
-	delta_array_node_all = spsolve(K_matrix_global_all_final.tocsc(), F_matrix_global_all)
+	F_matrix_global_all_reduced = np.delete(F_matrix_global_all.toarray(),5)
+	print('F_matrix_global_all',F_matrix_global_all_reduced)
+	delta_array_node_all = spsolve(K_matrix_global_all_final_reduced.tocsc(), F_matrix_global_all_reduced)
 	# '''
 	print('delta_array_node_all=', delta_array_node_all)
 	
