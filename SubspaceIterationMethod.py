@@ -23,6 +23,25 @@ def func_Subspace_method(K_matrix,M_matrix):
 		x_i = x_i_ba.dot(Q_matrix)
 
 	return Lambda_matrix, Q_matrix
+'''
+该注释部分对应于K.J.Bathe《有限元法-第2版下》例题11.24
+import numpy as np
+M_matrix = np.array([[0.5,0,0],[0,1,0],[0,0,0.5]])
+phi21_ba = np.array([[0.25,0.50,0.75]]).T
+phi22_ba = np.array([[0.75,0.50,0.25]]).T
+
+I_array=np.array([[1,1,1]]).T
+phi21 = np.array([[1/3,2/3,1]]).T
+x1 = I_array
+phi1 = phi21
+
+alpha1 = (np.dot(phi1.T,M_matrix)).dot(x1)
+print(alpha1)
+x1_ba = x1 - alpha1*phi1
+print(x1_ba)
+x1_ba*1.179/0.55555556
+'''
+
 
 if __name__ == "__main__":
 
