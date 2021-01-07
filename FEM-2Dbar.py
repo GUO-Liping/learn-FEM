@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import sparse
 from scipy.sparse.linalg import spsolve
-
+# new
 def calcu_I(para, width=0, height=0, d=1):
 	if para == 'rectangle':
 		return width*height**3/12
